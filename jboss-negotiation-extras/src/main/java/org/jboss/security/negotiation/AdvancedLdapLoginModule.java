@@ -378,7 +378,7 @@ public class AdvancedLdapLoginModule extends CommonLoginModule
 
       try
       {
-         searchContext = constructLdapContext(null, bindDn, bindCredential, bindAuthentication);
+         searchContext = constructLdapContext(null, relative(bindDn), bindCredential, bindAuthentication);
          log.debug("Obtained LdapContext");
 
          // Search for user in LDAP
@@ -423,6 +423,32 @@ public class AdvancedLdapLoginModule extends CommonLoginModule
       }
 
       return Boolean.valueOf(super.loginOk);
+   }
+
+   private String relative(String dn) {
+      final String providerURL = (String) options.get(Context.PROVIDER_URL);
+      if (providerURL == null) {
+         return  dn;
+      }
+
+      try {
+         String rootDN = new URI(providerURL).getRawPath();
+
+         if (rootDN != null && rootDN.startsWith("/")) {
+            rootDN = rootDN.substring(1);
+         }
+
+         if (rootDN == null || rootDN.isEmpty()) {
+            return dn;
+         } else {
+            return dn + "," + rootDN;
+         }
+
+      } catch (URISyntaxException e) {
+         // TODO: comment
+      }
+
+      return dn;
    }
 
    private Properties constructLdapContextEnvironment(String namingProviderURL, String principalDN, Object credential, String authentication) 
@@ -561,7 +587,7 @@ public class AdvancedLdapLoginModule extends CommonLoginModule
          String userDN = null;
          if (sr.isRelative() == true) 
          {
-            userDN = new CompositeName(name).get(0) + "," + baseCtxDN;
+            userDN = relative(new CompositeName(name).get(0) + "," + baseCtxDN);
          }
          else
          {
